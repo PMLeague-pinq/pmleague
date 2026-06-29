@@ -24,6 +24,7 @@ export default async function RankingsPage() {
       topCount: number;
       lastCount: number;
       avoidLastRate: number;
+      bestWinScore: number | null;
     }
   >();
 
@@ -33,6 +34,7 @@ export default async function RankingsPage() {
       topCount: 0,
       lastCount: 0,
       avoidLastRate: 0,
+      bestWinScore: null,
     });
   });
 
@@ -72,6 +74,11 @@ export default async function RankingsPage() {
 
       if (index === 0) {
         stats.topCount += 1;
+
+        if (typeof result.rawScore === 'number') {
+          stats.bestWinScore =
+            stats.bestWinScore === null ? result.rawScore : Math.max(stats.bestWinScore, result.rawScore);
+        }
       }
 
       if (index === rankedResults.length - 1) {
@@ -86,6 +93,7 @@ export default async function RankingsPage() {
       topCount: 0,
       lastCount: 0,
       avoidLastRate: 0,
+      bestWinScore: null,
     };
 
     return {
@@ -97,6 +105,20 @@ export default async function RankingsPage() {
           : 0,
     };
   });
+
+  const bestScoreRanked = playerStats
+    .filter((player) => player.bestWinScore !== null)
+    .sort((a, b) => {
+      if ((b.bestWinScore ?? 0) !== (a.bestWinScore ?? 0)) {
+        return (b.bestWinScore ?? 0) - (a.bestWinScore ?? 0);
+      }
+
+      if (b.topCount !== a.topCount) {
+        return b.topCount - a.topCount;
+      }
+
+      return b.totalScore - a.totalScore;
+    });
 
   // ランキング順位を計算（トップ数でソート、同点の場合はラス回避率でソート）
   const topCountRanked = [...playerStats].sort((a, b) => {
@@ -227,6 +249,32 @@ export default async function RankingsPage() {
                     </div>
                   ))}
                   {topCountRanked.length === 0 && <div className="text-center text-gray-500 py-10 font-bold tracking-widest text-sm">NO DATA</div>}
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/15 rounded-xl overflow-hidden shadow-[0_0_18px_rgba(0,0,0,0.2)] pm-board-panel">
+                <div className="px-4 py-3 bg-black/70 border-b border-amber-600/20 flex items-center justify-between gap-3 pm-board-panel-head">
+                  <div className="text-sm font-bold text-amber-400 tracking-[0.2em] uppercase">最高スコア</div>
+                  <div className="text-[10px] text-gray-500 tracking-widest uppercase">1着時の素点</div>
+                </div>
+                <div className="p-3 space-y-2 max-h-[560px] overflow-y-auto custom-scrollbar">
+                  {bestScoreRanked.map((player, index) => (
+                    <div key={player.id} className="bg-black/40 border border-white/15 p-3 rounded-lg relative overflow-hidden transition-colors hover:border-white/35 m-ranking-row pm-board-row">
+                      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: player.team?.color || '#eab308' }}></div>
+                      <div className="m-ranking-left gap-3 flex-grow pr-3">
+                        <div className="w-6 text-center font-black italic text-lg text-gray-500 shrink-0">{index + 1}</div>
+                        <div className="min-w-0 flex flex-col">
+                          <div className="text-sm font-bold tracking-wider truncate">{player.name}</div>
+                          <div className="text-[10px] text-gray-500 tracking-widest uppercase truncate">{player.team?.name}</div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-lg font-mono font-bold text-amber-400">{player.bestWinScore?.toFixed(0)}点</div>
+                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">TOP {player.topCount} / PT {player.totalScore > 0 ? '+' : ''}{player.totalScore.toFixed(1)}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {bestScoreRanked.length === 0 && <div className="text-center text-gray-500 py-10 font-bold tracking-widest text-sm">NO DATA</div>}
                 </div>
               </div>
 
