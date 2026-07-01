@@ -208,7 +208,7 @@ export default function TeamEditPage() {
 
               <div className="space-y-4">
                 <h2 className="text-sm font-bold text-yellow-500 tracking-widest uppercase border-b border-white/10 pb-2">Players</h2>
-                <p className="text-xs text-gray-500">※名前を書き換えると更新されます。空欄に新しく入力すると「追加メンバー」になります（最大5名）。</p>
+                <p className="text-xs text-gray-500">※名前を書き換えると更新されます。登録済みの選手を空欄に戻すと、その枠から外れて未登録になります（最大5名）。</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {players.map((player, index) => (

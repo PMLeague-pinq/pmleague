@@ -89,30 +89,59 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "選手登録は最大5名までです" }, { status: 400 });
     }
 
-    // 1. チーム名とカラーを更新
-    await prisma.team.update({
-      where: { id },
-      data: { name, color },
-    });
+    const normalizedPlayers = players.map((p: { id?: string; name?: string }) => ({
+      id: (p.id || '').trim(),
+      name: (p.name || '').trim(),
+    }));
 
-    // 2. 所属選手の更新または新規追加
-    for (const p of players) {
-      if (p.id) {
-        if (p.name.trim() !== "") {
-          await prisma.player.update({
-            where: { id: p.id },
-            data: { name: p.name },
-          });
-        }
-      } else if (!p.id && p.name.trim() !== "") {
-        await prisma.player.create({
-          data: {
-            name: p.name,
-            teamId: id,
-          },
-        });
+    const playersToRemove = normalizedPlayers.filter((p) => p.id && p.name === '');
+    const playersToKeep = normalizedPlayers.filter((p) => p.name !== '');
+
+    if (playersToRemove.length > 0) {
+      const removablePlayerIds = playersToRemove.map((p) => p.id);
+      const playersWithMatchResults = await prisma.player.findMany({
+        where: {
+          id: { in: removablePlayerIds },
+          matchResults: { some: {} },
+        },
+        select: { id: true, name: true },
+      });
+
+      if (playersWithMatchResults.length > 0) {
+        return NextResponse.json({
+          error: "試合結果がある選手は空欄に戻せません",
+        }, { status: 400 });
       }
     }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.team.update({
+        where: { id },
+        data: { name, color },
+      });
+
+      for (const player of playersToRemove) {
+        await tx.player.delete({
+          where: { id: player.id },
+        });
+      }
+
+      for (const player of playersToKeep) {
+        if (player.id) {
+          await tx.player.update({
+            where: { id: player.id },
+            data: { name: player.name },
+          });
+        } else {
+          await tx.player.create({
+            data: {
+              name: player.name,
+              teamId: id,
+            },
+          });
+        }
+      }
+    });
 
     return NextResponse.json({ message: "チーム情報を更新しました！" }, { status: 200 });
   } catch (error) {
