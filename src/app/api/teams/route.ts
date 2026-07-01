@@ -36,7 +36,10 @@ export async function POST(req: Request) {
         name,
         color,
         players: {
-          create: normalizedPlayerNames.map((pName: string) => ({ name: pName })),
+          create: normalizedPlayerNames.map((pName: string, index: number) => ({
+            name: pName,
+            slotOrder: index + 1,
+          })),
         },
       },
       include: {
@@ -44,7 +47,12 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ message: "チームと選手を登録しました！", team }, { status: 201 });
+    const sortedTeam = {
+      ...team,
+      players: [...team.players].sort((a, b) => a.slotOrder - b.slotOrder),
+    };
+
+    return NextResponse.json({ message: "チームと選手を登録しました！", team: sortedTeam }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "登録中にエラーが発生しました" }, { status: 500 });
@@ -62,7 +70,13 @@ export async function GET() {
         name: 'asc',
       },
     });
-    return NextResponse.json(teams);
+
+    return NextResponse.json(
+      teams.map((team) => ({
+        ...team,
+        players: [...team.players].sort((a, b) => a.slotOrder - b.slotOrder),
+      }))
+    );
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "チーム情報の取得に失敗しました" }, { status: 500 });
@@ -94,8 +108,8 @@ export async function PATCH(req: Request) {
       name: (p.name || '').trim(),
     }));
 
+    const compactedPlayers = normalizedPlayers.filter((p) => p.name !== '');
     const playersToRemove = normalizedPlayers.filter((p) => p.id && p.name === '');
-    const playersToKeep = normalizedPlayers.filter((p) => p.name !== '');
 
     if (playersToRemove.length > 0) {
       const removablePlayerIds = playersToRemove.map((p) => p.id);
@@ -126,17 +140,20 @@ export async function PATCH(req: Request) {
         });
       }
 
-      for (const player of playersToKeep) {
+      for (const [index, player] of compactedPlayers.entries()) {
+        const slotOrder = index + 1;
+
         if (player.id) {
           await tx.player.update({
             where: { id: player.id },
-            data: { name: player.name },
+            data: { name: player.name, slotOrder },
           });
         } else {
           await tx.player.create({
             data: {
               name: player.name,
               teamId: id,
+              slotOrder,
             },
           });
         }

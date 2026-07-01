@@ -14,7 +14,7 @@ export default async function RankingsPage() {
       team: true,
       matchResults: true,
     },
-    orderBy: { totalScore: 'desc' },
+    orderBy: [{ totalScore: 'desc' }, { slotOrder: 'asc' }],
   });
 
   const playerStatsMap = new Map<

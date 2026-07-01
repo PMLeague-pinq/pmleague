@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const teams = await prisma.team.findMany({ orderBy: { totalScore: 'desc' } });
     const players = await prisma.player.findMany({ 
       include: { team: true }, 
-      orderBy: { totalScore: 'desc' } 
+      orderBy: [{ totalScore: 'desc' }, { slotOrder: 'asc' }] 
     });
 
     // データを丸ごと文字列（JSON）に変換して保存の準備

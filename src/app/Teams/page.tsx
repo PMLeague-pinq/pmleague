@@ -17,6 +17,11 @@ export default async function TeamsPage() {
     },
   });
 
+  const sortedTeams = teams.map((team) => ({
+    ...team,
+    players: [...team.players].sort((a, b) => a.slotOrder - b.slotOrder),
+  }));
+
   return (
     <main className="min-h-screen bg-[#050505] p-4 md:p-6 text-white font-sans">
       <div className="max-w-6xl mx-auto mt-8 md:mt-10">
@@ -33,7 +38,7 @@ export default async function TeamsPage() {
 
         {/* チーム一覧のグリッド表示 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {teams.map((team) => (
+          {sortedTeams.map((team) => (
             <Link
               href={`/Teams/${team.id}`}
               key={team.id}
@@ -67,7 +72,7 @@ export default async function TeamsPage() {
             </Link>
           ))}
           
-          {teams.length === 0 && (
+          {sortedTeams.length === 0 && (
             <div className="col-span-full text-center text-gray-500 py-20 font-bold tracking-widest">
               NO TEAMS REGISTERED YET.
             </div>
