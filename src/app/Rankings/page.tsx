@@ -28,6 +28,14 @@ export default async function RankingsPage() {
     }
   >();
 
+  type PlayerStat = (typeof players)[number] & {
+    totalMatches: number;
+    topCount: number;
+    lastCount: number;
+    avoidLastRate: number;
+    bestWinScore: number | null;
+  };
+
   players.forEach((player) => {
     playerStatsMap.set(player.id, {
       totalMatches: 0,
@@ -87,7 +95,7 @@ export default async function RankingsPage() {
     });
   });
 
-  const playerStats = players.map((player) => {
+  const playerStats: PlayerStat[] = players.map((player) => {
     const stats = playerStatsMap.get(player.id) ?? {
       totalMatches: 0,
       topCount: 0,
@@ -207,7 +215,7 @@ export default async function RankingsPage() {
                   <div className="text-[10px] text-gray-500 tracking-widest uppercase">総合スコア</div>
                 </div>
                 <div className="p-3 space-y-2 max-h-[560px] overflow-y-auto custom-scrollbar">
-                  {players.map((player, index) => (
+                  {playerStats.map((player, index) => (
                     <div key={player.id} className="bg-black/40 border border-white/15 p-3 rounded-lg relative overflow-hidden transition-colors hover:border-white/35 m-ranking-row pm-board-row">
                       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: player.team?.color || '#eab308' }}></div>
                       <div className="m-ranking-left gap-3 flex-grow pr-3">
@@ -225,7 +233,7 @@ export default async function RankingsPage() {
                       </div>
                     </div>
                   ))}
-                  {players.length === 0 && <div className="text-center text-gray-500 py-10 font-bold tracking-widest text-sm">NO DATA</div>}
+                  {playerStats.length === 0 && <div className="text-center text-gray-500 py-10 font-bold tracking-widest text-sm">NO DATA</div>}
                 </div>
               </div>
 
