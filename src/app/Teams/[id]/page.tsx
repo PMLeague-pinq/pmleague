@@ -1,8 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 const prisma = new PrismaClient();
+type TeamWithPlayers = Prisma.TeamGetPayload<{
+  include: {
+    players: true;
+  };
+}>;
 export const revalidate = 0;
 
 // URLに含まれるチームID（[id]）を受け取って画面を作る
@@ -10,17 +15,35 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
   // 念のため params を非同期で展開（最新のNext.jsの仕様対応）
   const { id } = await params;
 
-  // 受け取ったIDに一致するチームと、その選手を探す
-  const team = await prisma.team.findUnique({
-    where: { id: id },
-    include: {
-      players: true,
-    },
-  });
+  let team: TeamWithPlayers | null = null;
+
+  try {
+    // 受け取ったIDに一致するチームと、その選手を探す
+    team = await prisma.team.findUnique({
+      where: { id: id },
+      include: {
+        players: true,
+      },
+    });
+  } catch (error) {
+    console.error('[teams/detail] Failed to load team', error);
+  }
 
   // 万が一チームが見つからなかったら404エラーページを出す
   if (!team) {
-    notFound();
+    return (
+      <main className="min-h-screen bg-[#050505] text-white font-sans flex items-center justify-center px-4">
+        <div className="max-w-xl w-full rounded-xl border border-red-500/20 bg-black/40 p-6 text-center">
+          <div className="text-sm font-bold tracking-[0.2em] uppercase text-red-300 mb-3">TEAM UNAVAILABLE</div>
+          <div className="text-gray-300">チーム情報の読み込みに失敗しました。再読み込みしてください。</div>
+          <div className="mt-6">
+            <Link href="/Teams" className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm text-gray-200 hover:border-yellow-500 hover:text-yellow-500 transition-colors">
+              Teams に戻る
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (

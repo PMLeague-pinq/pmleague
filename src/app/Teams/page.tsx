@@ -1,21 +1,34 @@
 import Link from 'next/link';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+type TeamWithPlayers = Prisma.TeamGetPayload<{
+  include: {
+    players: true;
+  };
+}>;
 
 // 常に最新のデータベース情報を取得する設定
 export const revalidate = 0; 
 
 export default async function TeamsPage() {
-  // データベースから、全チームとそれに紐づく選手を一気に取得！
-  const teams = await prisma.team.findMany({
-    include: {
-      players: true,
-    },
-    orderBy: {
-      name: 'asc', // 名前順（後でトータルスコア順などに変更も可能です）
-    },
-  });
+  let teams: TeamWithPlayers[] = [];
+  let loadError = false;
+
+  try {
+    // データベースから、全チームとそれに紐づく選手を一気に取得！
+    teams = await prisma.team.findMany({
+      include: {
+        players: true,
+      },
+      orderBy: {
+        name: 'asc', // 名前順（後でトータルスコア順などに変更も可能です）
+      },
+    });
+  } catch (error) {
+    loadError = true;
+    console.error('[teams] Failed to load teams', error);
+  }
 
   return (
     <main className="min-h-screen bg-[#050505] p-4 md:p-6 text-white font-sans">
@@ -32,6 +45,12 @@ export default async function TeamsPage() {
         </div>
 
         {/* チーム一覧のグリッド表示 */}
+        {loadError && (
+          <div className="mb-6 rounded-lg border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+            チーム一覧の読み込みに失敗しました。時間をおいて再読み込みしてください。
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {teams.map((team) => (
             <Link
@@ -69,7 +88,7 @@ export default async function TeamsPage() {
           
           {teams.length === 0 && (
             <div className="col-span-full text-center text-gray-500 py-20 font-bold tracking-widest">
-              NO TEAMS REGISTERED YET.
+              {loadError ? 'TEAM DATA UNAVAILABLE.' : 'NO TEAMS REGISTERED YET.'}
             </div>
           )}
         </div>
