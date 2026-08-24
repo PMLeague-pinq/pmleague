@@ -23,8 +23,6 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
     notFound();
   }
 
-  const sortedPlayers = [...team.players].sort((a, b) => a.slotOrder - b.slotOrder);
-
   return (
     <main className="min-h-screen bg-[#050505] text-white font-sans flex flex-col items-center">
       
@@ -64,7 +62,7 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {sortedPlayers.map((player) => (
+          {team.players.map((player) => (
             <div key={player.id} className="bg-[#111] border border-white/10 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-sm hover:border-white/30 transition-colors">
               <div className="min-w-0">
                 <div className="text-[10px] text-gray-500 tracking-widest uppercase mb-1">Player</div>
@@ -77,7 +75,7 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
             </div>
           ))}
           
-          {sortedPlayers.length === 0 && (
+          {team.players.length === 0 && (
             <div className="col-span-full text-gray-500 py-10 font-bold tracking-widest text-center">
               NO PLAYERS REGISTERED.
             </div>
