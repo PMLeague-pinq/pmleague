@@ -220,6 +220,9 @@ export default async function RankingsPage() {
                       <div className={`text-lg font-mono font-bold w-20 text-right shrink-0 ${player.totalScore >= 0 ? 'text-white' : 'text-red-500'}`}>
                         {player.totalScore > 0 ? '+' : ''}{player.totalScore.toFixed(1)}
                       </div>
+                      <div className="w-16 text-right shrink-0 text-[10px] text-gray-500 tracking-widest uppercase">
+                        {player.totalMatches}試合
+                      </div>
                     </div>
                   ))}
                   {players.length === 0 && <div className="text-center text-gray-500 py-10 font-bold tracking-widest text-sm">NO DATA</div>}
@@ -244,7 +247,7 @@ export default async function RankingsPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-lg font-mono font-bold text-green-400">{player.topCount}回</div>
-                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">PT {player.totalScore > 0 ? '+' : ''}{player.totalScore.toFixed(1)}</div>
+                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">{player.totalMatches}試合 / PT {player.totalScore > 0 ? '+' : ''}{player.totalScore.toFixed(1)}</div>
                       </div>
                     </div>
                   ))}
@@ -270,7 +273,7 @@ export default async function RankingsPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-lg font-mono font-bold text-amber-400">{player.bestWinScore?.toFixed(0)}点</div>
-                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">TOP {player.topCount} / PT {player.totalScore > 0 ? '+' : ''}{player.totalScore.toFixed(1)}</div>
+                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">{player.totalMatches}試合 / TOP {player.topCount}</div>
                       </div>
                     </div>
                   ))}
@@ -296,7 +299,7 @@ export default async function RankingsPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-lg font-mono font-bold text-blue-400">{player.avoidLastRate}%</div>
-                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">L {player.lastCount}/{player.totalMatches}</div>
+                        <div className="text-[10px] text-gray-500 tracking-widest uppercase">L {player.lastCount}/{player.totalMatches} 試合</div>
                       </div>
                     </div>
                   ))}

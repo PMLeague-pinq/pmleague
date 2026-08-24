@@ -1,19 +1,35 @@
 {
   "name": "pmleague",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PMLeague/pmleague.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PMLeague/pmleague/issues"
+  },
+  "homepage": "https://github.com/PMLeague/pmleague#readme",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios",
+    "cap:run:android": "cap run android",
+    "cap:run:ios": "cap run ios"
   },
   "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^12.36.0",
-    "next": "16.1.6",
+    "next": "16.2.6",
     "next-auth": "^5.0.0-beta.30",
     "nvm": "^0.0.4",
     "react": "19.2.3",
@@ -24,10 +40,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@capacitor/cli": "^6.1.2",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.6",
     "prisma": "^5.22.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
   }
 }

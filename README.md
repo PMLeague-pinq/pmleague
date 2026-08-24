@@ -1,8 +1,8 @@
 # PM League
 
-Next.js + Prisma + Auth.js (NextAuth) で構成されたリーグ管理アプリです。
+Next.js + Prisma + Auth.js (NextAuth) の Web 版と、Expo で動くアプリ版を並走させる構成です。Web はそのまま残し、アプリは `mobile/` に置いています。
 
-## Local Development
+## Web 開発
 
 1. 依存関係をインストール
 
@@ -23,6 +23,31 @@ npx prisma generate
 ```bash
 npm run dev
 ```
+
+## App 開発
+
+1. `mobile/` に移動して依存関係を入れます。
+
+```bash
+cd mobile
+npm install
+```
+
+2. Web API のベース URL を設定します。
+
+```powershell
+$env:EXPO_PUBLIC_API_BASE_URL="http://localhost:3000"
+```
+
+Android エミュレータなら `http://10.0.2.2:3000` を使ってください。
+
+3. Expo を起動します。
+
+```bash
+npm run start
+```
+
+アプリ版は Web の公開 API を参照します。現在はランキング、試合、チーム情報をまとめて表示するビューとして移植しています。
 
 ## Vercel Deployment
 

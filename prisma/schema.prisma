@@ -41,6 +41,7 @@ model Player {
   teamId       String
   team         Team          @relation(fields: [teamId], references: [id])
   totalScore   Float         @default(0.0)
+  slotOrder    Int           @default(0)
   matchResults MatchResult[]
 }
 

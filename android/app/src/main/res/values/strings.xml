@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PMLeague Official</string>
+    <string name="title_activity_main">PMLeague Official</string>
+    <string name="package_name">com.pmleague.official</string>
+    <string name="custom_url_scheme">com.pmleague.official</string>
+</resources>
