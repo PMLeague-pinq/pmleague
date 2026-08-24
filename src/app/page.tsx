@@ -65,9 +65,9 @@ export default async function Home() {
           </p>
 
           <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/10 bg-black/40 px-4 py-2 md:px-6 md:py-3 shadow-[0_0_24px_rgba(0,0,0,0.25)]">
-            <span className="text-[10px] md:text-xs text-gray-500 tracking-[0.25em] uppercase font-bold">TOTAL MATCHES</span>
+            <span className="text-[10px] md:text-xs text-gray-500 tracking-[0.25em] uppercase font-bold">TOTAL MATCHES </span>
             <span className="text-xl md:text-3xl font-black italic text-white tracking-tight">{finishedMatchCount}</span>
-            <span className="text-[10px] md:text-xs text-gray-500 tracking-[0.2em] uppercase font-bold">FINISHED</span>
+            <span className="text-[10px] md:text-xs text-gray-500 tracking-[0.2em] uppercase font-bold"> FINISHED</span>
           </div>
         </div>
       </section>
