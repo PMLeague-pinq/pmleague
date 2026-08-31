@@ -13,11 +13,30 @@ export async function GET() {
     const matches = await prisma.match.findMany({
       where: { status: "SCHEDULED" },
       orderBy: { date: "asc" },
-      include: {
+      select: {
+        id: true,
+        date: true,
+        title: true,
+        status: true,
         results: {
-          include: {
+          select: {
+            id: true,
+            matchId: true,
+            playerId: true,
+            wind: true,
             player: {
-              include: { team: true },
+              select: {
+                id: true,
+                name: true,
+                teamId: true,
+                team: {
+                  select: {
+                    id: true,
+                    name: true,
+                    color: true,
+                  },
+                },
+              },
             },
           },
         },

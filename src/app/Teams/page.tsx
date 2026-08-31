@@ -3,8 +3,19 @@ import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 type TeamWithPlayers = Prisma.TeamGetPayload<{
-  include: {
-    players: true;
+  select: {
+    id: true;
+    name: true;
+    color: true;
+    totalScore: true;
+    players: {
+      select: {
+        id: true;
+        name: true;
+        totalScore: true;
+        teamId: true;
+      };
+    };
   };
 }>;
 
@@ -18,8 +29,19 @@ export default async function TeamsPage() {
   try {
     // データベースから、全チームとそれに紐づく選手を一気に取得！
     teams = await prisma.team.findMany({
-      include: {
-        players: true,
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        totalScore: true,
+        players: {
+          select: {
+            id: true,
+            name: true,
+            totalScore: true,
+            teamId: true,
+          },
+        },
       },
       orderBy: {
         name: 'asc', // 名前順（後でトータルスコア順などに変更も可能です）

@@ -19,7 +19,13 @@ async function assignWindsIfReady(matchId: string) {
     include: {
       results: {
         include: {
-          player: true,
+          player: {
+            select: {
+              id: true,
+              name: true,
+              teamId: true,
+            },
+          },
         },
       },
     },

@@ -4,8 +4,19 @@ import { notFound } from 'next/navigation';
 
 const prisma = new PrismaClient();
 type TeamWithPlayers = Prisma.TeamGetPayload<{
-  include: {
-    players: true;
+  select: {
+    id: true;
+    name: true;
+    color: true;
+    totalScore: true;
+    players: {
+      select: {
+        id: true;
+        name: true;
+        totalScore: true;
+        teamId: true;
+      };
+    };
   };
 }>;
 export const revalidate = 0;
@@ -21,8 +32,19 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
     // 受け取ったIDに一致するチームと、その選手を探す
     team = await prisma.team.findUnique({
       where: { id: id },
-      include: {
-        players: true,
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        totalScore: true,
+        players: {
+          select: {
+            id: true,
+            name: true,
+            totalScore: true,
+            teamId: true,
+          },
+        },
       },
     });
   } catch (error) {

@@ -33,27 +33,74 @@ export async function GET() {
     const [teams, players, scheduledMatches, finishedMatches, latestArchive] = await Promise.all([
       prisma.team.findMany({
         orderBy: { totalScore: "desc" },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          totalScore: true,
           players: {
             orderBy: { totalScore: "desc" },
+            select: {
+              id: true,
+              name: true,
+              teamId: true,
+              totalScore: true,
+            },
           },
         },
       }),
       prisma.player.findMany({
-        include: {
-          team: true,
-          matchResults: true,
+        select: {
+          id: true,
+          name: true,
+          teamId: true,
+          totalScore: true,
+          team: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+            },
+          },
+          matchResults: {
+            select: {
+              id: true,
+              matchId: true,
+              playerId: true,
+              points: true,
+              rawScore: true,
+            },
+          },
         },
         orderBy: { totalScore: "desc" },
       }),
       prisma.match.findMany({
         where: { status: "SCHEDULED" },
         orderBy: { date: "asc" },
-        include: {
+        select: {
+          id: true,
+          date: true,
+          title: true,
+          status: true,
           results: {
-            include: {
+            select: {
+              id: true,
+              matchId: true,
+              playerId: true,
+              wind: true,
               player: {
-                include: { team: true },
+                select: {
+                  id: true,
+                  name: true,
+                  teamId: true,
+                  team: {
+                    select: {
+                      id: true,
+                      name: true,
+                      color: true,
+                    },
+                  },
+                },
               },
             },
           },
@@ -62,11 +109,33 @@ export async function GET() {
       prisma.match.findMany({
         where: { status: "FINISHED" },
         orderBy: { date: "desc" },
-        include: {
+        select: {
+          id: true,
+          date: true,
+          title: true,
+          status: true,
           results: {
-            include: {
+            select: {
+              id: true,
+              matchId: true,
+              playerId: true,
+              wind: true,
+              rawScore: true,
+              points: true,
+              rank: true,
               player: {
-                include: { team: true },
+                select: {
+                  id: true,
+                  name: true,
+                  teamId: true,
+                  team: {
+                    select: {
+                      id: true,
+                      name: true,
+                      color: true,
+                    },
+                  },
+                },
               },
             },
           },

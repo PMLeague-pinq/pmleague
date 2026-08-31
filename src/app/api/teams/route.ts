@@ -39,8 +39,19 @@ export async function POST(req: Request) {
           create: normalizedPlayerNames.map((pName: string) => ({ name: pName })),
         },
       },
-      include: {
-        players: true,
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        totalScore: true,
+        players: {
+          select: {
+            id: true,
+            name: true,
+            totalScore: true,
+            teamId: true,
+          },
+        },
       },
     });
 
@@ -55,8 +66,19 @@ export async function GET() {
   try {
     // 全チームと所属選手をデータベースから取得
     const teams = await prisma.team.findMany({
-      include: {
-        players: true,
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        totalScore: true,
+        players: {
+          select: {
+            id: true,
+            name: true,
+            totalScore: true,
+            teamId: true,
+          },
+        },
       },
       orderBy: {
         name: 'asc',

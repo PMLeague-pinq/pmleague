@@ -12,9 +12,28 @@ export async function POST(req: Request) {
     }
 
     // 1. 現在の全チームと全選手のランキングデータを取得
-    const teams = await prisma.team.findMany({ orderBy: { totalScore: 'desc' } });
+    const teams = await prisma.team.findMany({
+      orderBy: { totalScore: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        totalScore: true,
+      },
+    });
     const players = await prisma.player.findMany({ 
-      include: { team: true }, 
+      select: {
+        id: true,
+        name: true,
+        teamId: true,
+        totalScore: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
       orderBy: { totalScore: 'desc' } 
     });
 

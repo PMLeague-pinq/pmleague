@@ -1,8 +1,33 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import Link from 'next/link';
 
 const prisma = new PrismaClient();
 export const revalidate = 0;
+
+type PlayerRankingSource = Prisma.PlayerGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    teamId: true;
+    totalScore: true;
+    team: {
+      select: {
+        id: true;
+        name: true;
+        color: true;
+      };
+    };
+    matchResults: {
+      select: {
+        id: true;
+        matchId: true;
+        playerId: true;
+        points: true;
+        rawScore: true;
+      };
+    };
+  };
+}>;
 
 export default async function RankingsPage() {
   const teams = await prisma.team.findMany({
@@ -10,9 +35,27 @@ export default async function RankingsPage() {
   });
 
   const players = await prisma.player.findMany({
-    include: { 
-      team: true,
-      matchResults: true,
+    select: {
+      id: true,
+      name: true,
+      teamId: true,
+      totalScore: true,
+      team: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+        },
+      },
+      matchResults: {
+        select: {
+          id: true,
+          matchId: true,
+          playerId: true,
+          points: true,
+          rawScore: true,
+        },
+      },
     },
     orderBy: { totalScore: 'desc' },
   });
@@ -28,7 +71,7 @@ export default async function RankingsPage() {
     }
   >();
 
-  type PlayerStat = (typeof players)[number] & {
+  type PlayerStat = PlayerRankingSource & {
     totalMatches: number;
     topCount: number;
     lastCount: number;
@@ -46,7 +89,7 @@ export default async function RankingsPage() {
     });
   });
 
-  const matchGroups = new Map<string, typeof players[number]['matchResults']>();
+  const matchGroups = new Map<string, PlayerRankingSource['matchResults']>();
 
   players.forEach((player) => {
     player.matchResults.forEach((result) => {

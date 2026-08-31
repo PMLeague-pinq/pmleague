@@ -6,12 +6,29 @@ const prisma = new PrismaClient();
 export const revalidate = 0;
 
 type NextMatchWithResults = Prisma.MatchGetPayload<{
-  include: {
+  select: {
+    id: true;
+    date: true;
+    title: true;
+    status: true;
     results: {
-      include: {
+      select: {
+        id: true;
+        matchId: true;
+        playerId: true;
+        wind: true;
         player: {
-          include: {
-            team: true;
+          select: {
+            id: true;
+            name: true;
+            teamId: true;
+            team: {
+              select: {
+                id: true;
+                name: true;
+                color: true;
+              };
+            };
           };
         };
       };
@@ -29,8 +46,33 @@ export default async function Home() {
       where: { status: "SCHEDULED" },
       orderBy: [{ date: "asc" }, { id: "asc" }],
       take: 2,
-      include: {
-        results: { include: { player: { include: { team: true } } } },
+      select: {
+        id: true,
+        date: true,
+        title: true,
+        status: true,
+        results: {
+          select: {
+            id: true,
+            matchId: true,
+            playerId: true,
+            wind: true,
+            player: {
+              select: {
+                id: true,
+                name: true,
+                teamId: true,
+                team: {
+                  select: {
+                    id: true,
+                    name: true,
+                    color: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 

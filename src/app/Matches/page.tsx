@@ -11,12 +11,34 @@ export default async function MatchesPage() {
   const finishedMatches = await prisma.match.findMany({
     where: { status: 'FINISHED' },
     orderBy: { id: 'desc' }, // 新しい順（とりあえずID降順で代用）
-    include: {
+    select: {
+      id: true,
+      date: true,
+      title: true,
+      status: true,
       results: {
-        orderBy: { points: 'desc' }, // ポイントが高い順（1着〜4着）に並べ替え
-        include: {
+        orderBy: { points: 'desc' },
+        select: {
+          id: true,
+          matchId: true,
+          playerId: true,
+          wind: true,
+          rawScore: true,
+          points: true,
+          rank: true,
           player: {
-            include: { team: true }, // 所属チームの情報も引っ張ってくる
+            select: {
+              id: true,
+              name: true,
+              teamId: true,
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true,
+                },
+              },
+            },
           },
         },
       },
@@ -27,11 +49,30 @@ export default async function MatchesPage() {
   const scheduledMatches = await prisma.match.findMany({
     where: { status: 'SCHEDULED' },
     orderBy: { date: 'asc' },
-    include: {
+    select: {
+      id: true,
+      date: true,
+      title: true,
+      status: true,
       results: {
-        include: {
+        select: {
+          id: true,
+          matchId: true,
+          playerId: true,
+          wind: true,
           player: {
-            include: { team: true },
+            select: {
+              id: true,
+              name: true,
+              teamId: true,
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true,
+                },
+              },
+            },
           },
         },
       },
