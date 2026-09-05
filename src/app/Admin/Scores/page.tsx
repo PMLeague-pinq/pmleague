@@ -94,11 +94,21 @@ export default function ScoreInputPage() {
       return;
     }
 
+    const normalizedResults = results.map((result) => ({
+      teamId: result.teamId.trim(),
+      playerId: result.playerId.trim(),
+      rawScore: Number(result.rawScore),
+      points: Number(result.points),
+    }));
+
     try {
       const res = await fetch('/api/matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: matchTitle, results }),
+        body: JSON.stringify({
+          title: matchTitle.trim(),
+          results: normalizedResults,
+        }),
       });
 
       if (res.ok) {
@@ -106,8 +116,13 @@ export default function ScoreInputPage() {
         setResults(results.map(r => ({ ...r, rawScore: '', points: '' })));
         setMatchTitle('');
       } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error });
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          setMessage({ type: 'error', text: data.error || '登録に失敗しました' });
+        } catch {
+          setMessage({ type: 'error', text: text || '登録に失敗しました' });
+        }
       }
     } catch (err) {
       setMessage({ type: 'error', text: '通信エラーが発生しました' });
