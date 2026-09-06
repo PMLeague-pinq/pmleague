@@ -20,7 +20,7 @@ export default function ScoreInputPage() {
   ]);
 
   useEffect(() => {
-    fetch('/api/teams')
+    fetch('/api/teams', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => setTeams(data))
       .catch((err) => console.error("チーム取得エラー", err));
@@ -33,6 +33,34 @@ export default function ScoreInputPage() {
       newResults[index].playerId = '';
     }
     setResults(newResults);
+  };
+
+  const validateFormResults = () => {
+    if (results.length !== 4) {
+      return '4人分の成績を入力してください。';
+    }
+
+    const hasEmpty = results.some((result) => !result.teamId || !result.playerId || result.rawScore === '' || result.points === '');
+    if (hasEmpty) {
+      return '全員のチーム・選手・スコア・ポイントを入力してください。';
+    }
+
+    const playerIds = results.map((result) => result.playerId.trim());
+    if (new Set(playerIds).size !== playerIds.length) {
+      return '同じ選手が重複しています。別の選手を選んでください。';
+    }
+
+    const invalidScores = results.some((result) => {
+      const rawScore = Number(result.rawScore);
+      const points = Number(result.points);
+      return !Number.isFinite(rawScore) || !Number.isFinite(points);
+    });
+
+    if (invalidScores) {
+      return '素点またはポイントが不正です。';
+    }
+
+    return '';
   };
 
   // 🌟 ポイント自動計算ロジック（Mリーグルール基準）
@@ -80,16 +108,19 @@ export default function ScoreInputPage() {
     setMessage({ type: 'success', text: '順位とポイントを自動計算しました！' });
   };
 
-  const totalPoints = results.reduce((sum, r) => sum + (parseFloat(r.points) || 0), 0);
+  const totalPoints = results.reduce((sum, r) => {
+    const value = Number(r.points);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage({ type: '', text: '' });
 
-    const isComplete = results.every(r => r.teamId && r.playerId && r.rawScore !== '' && r.points !== '');
-    if (!isComplete) {
-      setMessage({ type: 'error', text: '全員のチーム・選手・スコア・ポイントを入力してください。' });
+    const validationError = validateFormResults();
+    if (validationError) {
+      setMessage({ type: 'error', text: validationError });
       setIsLoading(false);
       return;
     }
@@ -100,6 +131,23 @@ export default function ScoreInputPage() {
       rawScore: Number(result.rawScore),
       points: Number(result.points),
     }));
+
+    const teamMap = new Map(teams.map((team) => [team.id, team]));
+    for (const result of normalizedResults) {
+      const team = teamMap.get(result.teamId);
+      if (!team) {
+        setMessage({ type: 'error', text: 'チーム情報が取得できませんでした。再読み込みしてから再試行してください。' });
+        setIsLoading(false);
+        return;
+      }
+
+      const hasPlayer = team.players.some((player) => player.id === result.playerId);
+      if (!hasPlayer) {
+        setMessage({ type: 'error', text: '選手とチームの組み合わせが不正です。チーム一覧を再読込してから入力してください。' });
+        setIsLoading(false);
+        return;
+      }
+    }
 
     try {
       const res = await fetch('/api/matches', {
@@ -155,7 +203,7 @@ export default function ScoreInputPage() {
           </div>
         )}
 
-        <div className="bg-[#111] border border-white/10 p-5 sm:p-8 rounded-sm shadow-2xl relative">
+        <form onSubmit={handleSubmit} className="bg-[#111] border border-white/10 p-5 sm:p-8 rounded-sm shadow-2xl relative">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-700"></div>
 
           <div className="mb-6 sm:mb-8">
@@ -251,13 +299,13 @@ export default function ScoreInputPage() {
           </div>
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={isLoading}
             className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:bg-gray-700 text-black font-black italic py-4 transition-all tracking-widest mt-6"
           >
             {isLoading ? "SAVING..." : "試合結果を確定する"}
           </button>
-        </div>
+        </form>
       </div>
     </main>
   );
