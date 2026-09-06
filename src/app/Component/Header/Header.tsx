@@ -1,8 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import styles from "./Header.module.css";
+import { auth, signOut } from "@/auth";
 
-export default function Header() {
+export default async function Header() {
+  const session = await auth();
+  const isLoggedIn = !!session?.user;
 
   const mainLinks = [
     { href: "/Teams", label: "Teams" },
@@ -59,12 +62,28 @@ export default function Header() {
 
           <div className={styles.authSection}>
             <div className="flex items-center gap-3">
-              <Link href="/Admin" className={styles.skewBtnAdmin}>
-                <span>Admin</span>
-              </Link>
-              <Link href="/Login" className={styles.skewBtnLogin}>
-                <span>Login</span>
-              </Link>
+              {isLoggedIn && (
+                <Link href="/Admin" className={styles.skewBtnAdmin}>
+                  <span>Admin</span>
+                </Link>
+              )}
+
+              {isLoggedIn ? (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut({ redirectTo: "/Login" });
+                  }}
+                >
+                  <button type="submit" className={styles.skewBtnLogin}>
+                    <span>Logout</span>
+                  </button>
+                </form>
+              ) : (
+                <Link href="/Login" className={styles.skewBtnLogin}>
+                  <span>Login</span>
+                </Link>
+              )}
             </div>
           </div>
         </nav>
@@ -84,12 +103,28 @@ export default function Header() {
             </div>
 
             <div className={styles.mobileAuthArea}>
-              <Link href="/Admin" className={`${styles.mobileBtn} ${styles.mobileBtnAdmin}`}>
-                Admin
-              </Link>
-              <Link href="/Login" className={`${styles.mobileBtn} ${styles.mobileBtnLogin}`}>
-                Login
-              </Link>
+              {isLoggedIn && (
+                <Link href="/Admin" className={`${styles.mobileBtn} ${styles.mobileBtnAdmin}`}>
+                  Admin
+                </Link>
+              )}
+
+              {isLoggedIn ? (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut({ redirectTo: "/Login" });
+                  }}
+                >
+                  <button type="submit" className={`${styles.mobileBtn} ${styles.mobileBtnLogin}`}>
+                    Logout
+                  </button>
+                </form>
+              ) : (
+                <Link href="/Login" className={`${styles.mobileBtn} ${styles.mobileBtnLogin}`}>
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -15,6 +15,8 @@ if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
   );
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: authSecret,
   providers: [
@@ -40,13 +42,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!isPasswordValid) return null;
 
-        // 🌟 修正1：デフォルトの id, name に加えて、必要な全情報を返す
         return {
           id: user.id,
           name: user.name,
-          userId: user.userId, // カスタムフィールド
-          role: user.role,     // カスタムフィールド
-          teamId: user.teamId, // カスタムフィールド
+          userId: user.userId,
+          role: user.role,
+          teamId: user.teamId,
         };
       },
     }),
@@ -55,7 +56,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     strategy: "jwt",
   },
   callbacks: {
-    // 🌟 修正2：authorizeで返したデータを受け取り、JWTトークンに焼き付ける
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -65,7 +65,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token;
     },
-    // 🌟 修正3：JWTトークンのデータを、画面側で使える session オブジェクトに渡す
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
@@ -79,6 +78,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/Login",
   },
-  // 🌟 Vercel以外（ローカル開発など）で動かす際のエラーを防ぐおまじない
-  trustHost: true, 
+  cookies: {
+    sessionToken: {
+      name: isProduction ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+  },
+  trustHost: true,
 });

@@ -17,18 +17,17 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
- try {
+    try {
       const result = await signIn("credentials", {
-        userId: userId,
-        password: password,
+        userId,
+        password,
         redirect: false,
+        callbackUrl: "/Admin",
       });
 
-      // 🌟 ここを少しだけ変更（result.ok が false の場合もエラー扱いにする）
       if (!result?.ok || result?.error) {
         setError("IDまたはパスワードが正しくありません");
       } else {
-        // ログイン成功時
         router.push("/Admin");
         router.refresh();
       }
