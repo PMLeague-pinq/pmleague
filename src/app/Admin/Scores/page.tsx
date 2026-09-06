@@ -1,194 +1,204 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
-type Player = { id: string; name: string };
+type Player = { id: string; name: string; teamId?: string };
 type Team = { id: string; name: string; players: Player[] };
+type ResultRow = { teamId: string; playerId: string; rawScore: string; points: string };
+
+const createEmptyRow = (): ResultRow => ({
+  teamId: '',
+  playerId: '',
+  rawScore: '',
+  points: '',
+});
+
+const normalizeName = (value: string) =>
+  String(value ?? '').replace(/\u3000/g, ' ').replace(/\s+/g, ' ').trim();
 
 export default function ScoreInputPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [matchTitle, setMatchTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
-
-  const [results, setResults] = useState([
-    { teamId: '', playerId: '', rawScore: '', points: '' },
-    { teamId: '', playerId: '', rawScore: '', points: '' },
-    { teamId: '', playerId: '', rawScore: '', points: '' },
-    { teamId: '', playerId: '', rawScore: '', points: '' },
-  ]);
-
-  const normalizeName = (value: string) =>
-    value.replace(/\u3000/g, ' ').replace(/\s+/g, ' ').trim();
+  const [message, setMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string }>({
+    type: 'info',
+    text: '4人分の成績を入力してください。',
+  });
+  const [results, setResults] = useState<ResultRow[]>(Array.from({ length: 4 }, createEmptyRow));
 
   useEffect(() => {
+    let mounted = true;
+
     fetch('/api/teams', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        const normalized = Array.isArray(data)
-          ? data.map((team) => ({
-              ...team,
-              name: normalizeName(team.name || ''),
-              players: (team.players || []).map((player: Player) => ({
-                ...player,
-                name: normalizeName(player.name || ''),
-              })),
-            }))
-          : [];
+        if (!mounted || !Array.isArray(data)) {
+          return;
+        }
+
+        const normalized = data.map((team) => ({
+          ...team,
+          name: normalizeName(team.name || ''),
+          players: (team.players || []).map((player: Player) => ({
+            ...player,
+            name: normalizeName(player.name || ''),
+          })),
+        }));
+
         setTeams(normalized);
       })
-      .catch((err) => console.error("チーム取得エラー", err));
+      .catch((error) => {
+        console.error('チーム取得エラー', error);
+        setMessage({ type: 'error', text: 'チーム一覧の取得に失敗しました。ページを再読み込みしてください。' });
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const handleResultChange = (index: number, field: string, value: string) => {
-    const newResults = [...results];
-    newResults[index] = { ...newResults[index], [field]: value };
-    if (field === 'teamId') {
-      newResults[index].playerId = '';
-    }
-    setResults(newResults);
+  const teamMap = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
+
+  const updateResult = (index: number, field: keyof ResultRow, value: string) => {
+    setResults((current) =>
+      current.map((row, rowIndex) => {
+        if (rowIndex !== index) return row;
+
+        if (field === 'teamId') {
+          return { ...row, teamId: value, playerId: '' };
+        }
+
+        return { ...row, [field]: value };
+      })
+    );
   };
 
+  const calculatePoints = () => {
+    const validRows = results.filter((row) => row.teamId && row.playerId && row.rawScore !== '');
+
+    if (validRows.length === 0) {
+      setMessage({ type: 'error', text: 'まずは4人分の素点を入力してください。' });
+      return;
+    }
+
+    const rawScores = validRows
+      .map((row) => ({ ...row, score: Number(row.rawScore) }))
+      .filter((row) => Number.isFinite(row.score));
+
+    if (rawScores.length !== 4) {
+      setMessage({ type: 'error', text: '全員の素点は数値で入力してください。' });
+      return;
+    }
+
+    const ordered = [...rawScores].sort((a, b) => Number(b.score) - Number(a.score));
+    const umaTable = [50, 10, -10, -30];
+
+    const nextResults = results.map((row) => {
+      if (!row.teamId || !row.playerId || row.rawScore === '') {
+        return row;
+      }
+
+      const score = Number(row.rawScore);
+      if (!Number.isFinite(score)) {
+        return row;
+      }
+
+      const rankIndex = ordered.findIndex((entry) => entry.teamId === row.teamId && entry.playerId === row.playerId);
+      const uma = umaTable[rankIndex] ?? -30;
+      const points = (score - 30000) / 1000 + uma;
+
+      return { ...row, points: points.toFixed(1) };
+    });
+
+    setResults(nextResults);
+    setMessage({ type: 'success', text: 'ポイントを自動計算しました。' });
+  };
+
+  const totalPoints = results.reduce((sum, row) => {
+    const value = Number(row.points);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+
   const validateFormResults = () => {
-    if (results.length !== 4) {
+    const filled = results.filter((row) => row.teamId || row.playerId || row.rawScore || row.points);
+
+    if (filled.length !== 4) {
       return '4人分の成績を入力してください。';
     }
 
-    const hasEmpty = results.some((result) => !result.teamId || !result.playerId || result.rawScore === '' || result.points === '');
-    if (hasEmpty) {
-      return '全員のチーム・選手・スコア・ポイントを入力してください。';
+    for (const row of results) {
+      if (!row.teamId || !row.playerId || row.rawScore === '' || row.points === '') {
+        return '各行でチーム・選手・素点・ポイントをすべて入力してください。';
+      }
     }
 
-    const playerIds = results.map((result) => result.playerId.trim());
+    const playerIds = results.map((row) => row.playerId.trim());
     if (new Set(playerIds).size !== playerIds.length) {
       return '同じ選手が重複しています。別の選手を選んでください。';
     }
 
-    const invalidScores = results.some((result) => {
-      const rawScore = Number(result.rawScore);
-      const points = Number(result.points);
-      return !Number.isFinite(rawScore) || !Number.isFinite(points);
-    });
+    for (const row of results) {
+      if (!Number.isFinite(Number(row.rawScore)) || !Number.isFinite(Number(row.points))) {
+        return '素点またはポイントが不正です。';
+      }
+    }
 
-    if (invalidScores) {
-      return '素点またはポイントが不正です。';
+    for (const row of results) {
+      const team = teamMap.get(row.teamId);
+      if (!team) {
+        return 'チーム情報が取得できませんでした。再読み込みしてから再試行してください。';
+      }
+
+      const player = team.players.find((entry) => entry.id === row.playerId);
+      if (!player) {
+        return '選手とチームの組み合わせが不正です。チームの選手一覧を確認してください。';
+      }
     }
 
     return '';
   };
 
-  // 🌟 ポイント自動計算ロジック（Mリーグルール基準）
-  const calculatePoints = () => {
-    setMessage({ type: '', text: '' });
-
-    // 1. 全員の素点が入力されているかチェック
-    if (results.some(r => r.rawScore === '')) {
-      setMessage({ type: 'error', text: '4人全員の素点を入力してから計算してください。' });
-      return;
-    }
-
-    // 2. 素点の合計が10万点かチェック（入力ミスの防止）
-    const totalRawScore = results.reduce((sum, r) => sum + Number(r.rawScore), 0);
-    if (totalRawScore !== 100000) {
-      if (!window.confirm(`素点の合計が ${totalRawScore} 点です（通常は10万点）。このまま計算しますか？`)) {
-        return;
-      }
-    }
-
-    // 3. 計算処理
-    const umas = [50.0, 10.0, -10.0, -30.0]; // トップ賞のオカ(+20)込みのウマ
-    const scores = results.map(r => Number(r.rawScore)).sort((a, b) => b - a);
-    const newResults = [...results];
-
-    newResults.forEach((r, i) => {
-      const score = Number(r.rawScore);
-      
-      // 同着判定（同じ点数の人が何位タイになるかを探す）
-      const tieIndices: number[] = [];
-      scores.forEach((s, idx) => {
-        if (s === score) tieIndices.push(idx);
-      });
-
-      // 同着の場合はウマを分け合う（例：2着同点なら +10 と -10 を足して2で割る = 0）
-      const avgUma = tieIndices.reduce((sum, idx) => sum + umas[idx], 0) / tieIndices.length;
-      
-      // ポイント計算： (素点 - 30000) / 1000 + ウマ
-      const pt = (score - 30000) / 1000 + avgUma;
-      
-      newResults[i].points = pt.toFixed(1);
-    });
-
-    setResults(newResults);
-    setMessage({ type: 'success', text: '順位とポイントを自動計算しました！' });
-  };
-
-  const totalPoints = results.reduce((sum, r) => {
-    const value = Number(r.points);
-    return sum + (Number.isFinite(value) ? value : 0);
-  }, 0);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsLoading(true);
-    setMessage({ type: '', text: '' });
+    setMessage({ type: 'info', text: '登録中です...' });
 
     const validationError = validateFormResults();
     if (validationError) {
-      setMessage({ type: 'error', text: validationError });
       setIsLoading(false);
+      setMessage({ type: 'error', text: validationError });
       return;
     }
 
-    const normalizedResults = results.map((result) => ({
-      teamId: result.teamId.trim(),
-      playerId: result.playerId.trim(),
-      rawScore: Number(result.rawScore),
-      points: Number(result.points),
-    }));
-
-    const teamMap = new Map(teams.map((team) => [team.id, team]));
-    for (const result of normalizedResults) {
-      const team = teamMap.get(result.teamId);
-      if (!team) {
-        setMessage({ type: 'error', text: 'チーム情報が取得できませんでした。再読み込みしてから再試行してください。' });
-        setIsLoading(false);
-        return;
-      }
-
-      const hasPlayer = team.players.some((player) => player.id === result.playerId);
-      if (!hasPlayer) {
-        setMessage({ type: 'error', text: '選手とチームの組み合わせが不正です。チーム一覧を再読込してから入力してください。' });
-        setIsLoading(false);
-        return;
-      }
-    }
+    const payload = {
+      title: matchTitle.trim() || '試合結果',
+      results: results.map((row) => ({
+        teamId: row.teamId,
+        playerId: row.playerId,
+        rawScore: Number(row.rawScore),
+        points: Number(row.points),
+      })),
+    };
 
     try {
       const res = await fetch('/api/matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: matchTitle.trim(),
-          results: normalizedResults,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        setMessage({ type: 'success', text: '試合結果を登録し、スコアを更新しました！' });
-        setResults(results.map(r => ({ ...r, rawScore: '', points: '' })));
-        setMatchTitle('');
-      } else {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          setMessage({ type: 'error', text: data.error || '登録に失敗しました' });
-        } catch {
-          setMessage({ type: 'error', text: text || '登録に失敗しました' });
-        }
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(errorBody.error || '登録に失敗しました');
       }
-    } catch (err) {
-      setMessage({ type: 'error', text: '通信エラーが発生しました' });
+
+      setMessage({ type: 'success', text: '試合結果を登録しました。' });
+      setMatchTitle('');
+      setResults(Array.from({ length: 4 }, createEmptyRow));
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : '登録中にエラーが発生しました';
+      setMessage({ type: 'error', text: messageText });
     } finally {
       setIsLoading(false);
     }
@@ -196,96 +206,102 @@ export default function ScoreInputPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] p-4 md:p-6 text-white font-sans flex flex-col items-center">
-      <div className="w-full max-w-4xl mt-8 md:mt-10">
-        
+      <div className="w-full max-w-5xl mt-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-8 border-b border-white/10 pb-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-yellow-500">
-              SCORE REGISTRATION
-            </h1>
-            <p className="text-gray-500 text-[10px] md:text-xs mt-1 tracking-[0.12em] md:tracking-[0.2em] uppercase font-bold">
-              試合結果入力
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-yellow-500">SCORE REGISTRATION</h1>
+            <p className="text-gray-500 text-[10px] md:text-xs mt-1 tracking-[0.12em] md:tracking-[0.2em] uppercase font-bold">試合結果入力</p>
           </div>
-          <Link href="/" className="text-xs md:text-sm text-gray-400 hover:text-yellow-500 transition-colors">
-            トップへ戻る
-          </Link>
+          <Link href="/" className="text-xs md:text-sm text-gray-400 hover:text-yellow-500 transition-colors">トップへ戻る</Link>
         </div>
 
         {message.text && (
-          <div className={`p-4 mb-6 rounded-sm border ${message.type === 'error' ? 'bg-red-900/50 border-red-500 text-red-200' : 'bg-green-900/50 border-green-500 text-green-200'}`}>
+          <div
+            className={`mb-6 rounded-sm border p-4 text-sm ${
+              message.type === 'error'
+                ? 'border-red-500 bg-red-900/30 text-red-100'
+                : message.type === 'success'
+                  ? 'border-green-500 bg-green-900/30 text-green-100'
+                  : 'border-yellow-500 bg-yellow-900/20 text-yellow-100'
+            }`}
+          >
             {message.text}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="bg-[#111] border border-white/10 p-5 sm:p-8 rounded-sm shadow-2xl relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-700"></div>
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-700" />
 
           <div className="mb-6 sm:mb-8">
-            <label className="text-[10px] font-bold text-gray-400 tracking-widest uppercase block mb-2">試合名（任意）</label>
+            <label className="mb-2 block text-[10px] font-bold tracking-[0.18em] text-gray-400 uppercase">試合名（任意）</label>
             <input
               type="text"
               value={matchTitle}
-              onChange={(e) => setMatchTitle(e.target.value)}
-              className="w-full max-w-md bg-black border border-white/10 p-3 text-white focus:outline-none focus:border-yellow-500"
+              onChange={(event) => setMatchTitle(event.target.value)}
               placeholder="例: 第1節 第1試合"
+              className="w-full max-w-md bg-black border border-white/10 p-3 text-white outline-none focus:border-yellow-500"
             />
           </div>
 
           <div className="space-y-4">
             {results.map((result, index) => {
-              const selectedTeam = teams.find(t => t.id === result.teamId);
+              const selectedTeam = teams.find((team) => team.id === result.teamId);
+
               return (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-[2fr_2fr_1.5fr_1.5fr] gap-4 bg-black/50 p-4 border border-white/5 rounded-sm">
+                <div key={index} className="grid grid-cols-1 gap-4 rounded-sm border border-white/5 bg-black/50 p-4 md:grid-cols-[2fr_2fr_1.5fr_1.5fr]">
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase block mb-1">Team</label>
+                    <label className="mb-1 block text-[10px] uppercase text-gray-500">Team</label>
                     <select
                       value={result.teamId}
-                      onChange={(e) => handleResultChange(index, 'teamId', e.target.value)}
-                      className="w-full bg-[#111] border border-white/10 p-2 text-white focus:outline-none focus:border-yellow-500"
+                      onChange={(event) => updateResult(index, 'teamId', event.target.value)}
+                      className="w-full border border-white/10 bg-[#111] p-2 text-white outline-none focus:border-yellow-500"
                     >
                       <option value="">チームを選択</option>
-                      {teams.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase block mb-1">Player</label>
+                    <label className="mb-1 block text-[10px] uppercase text-gray-500">Player</label>
                     <select
                       value={result.playerId}
-                      onChange={(e) => handleResultChange(index, 'playerId', e.target.value)}
+                      onChange={(event) => updateResult(index, 'playerId', event.target.value)}
                       disabled={!result.teamId}
-                      className="w-full bg-[#111] border border-white/10 p-2 text-white focus:outline-none focus:border-yellow-500 disabled:opacity-50"
+                      className="w-full border border-white/10 bg-[#111] p-2 text-white outline-none focus:border-yellow-500 disabled:opacity-50"
                     >
                       <option value="">選手を選択</option>
-                      {selectedTeam?.players.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                      {(selectedTeam?.players ?? []).map((player) => (
+                        <option key={player.id} value={player.id}>
+                          {player.name}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase block mb-1">Raw Score (素点)</label>
+                    <label className="mb-1 block text-[10px] uppercase text-gray-500">Raw Score</label>
                     <input
                       type="number"
                       value={result.rawScore}
-                      onChange={(e) => handleResultChange(index, 'rawScore', e.target.value)}
-                      placeholder="例: 35000"
-                      className="w-full bg-[#111] border border-white/10 p-2 text-white focus:outline-none focus:border-yellow-500 font-mono"
+                      onChange={(event) => updateResult(index, 'rawScore', event.target.value)}
+                      placeholder="35000"
+                      className="w-full border border-white/10 bg-[#111] p-2 text-white outline-none focus:border-yellow-500 font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase block mb-1">Points (pt)</label>
+                    <label className="mb-1 block text-[10px] uppercase text-gray-500">Points</label>
                     <input
                       type="number"
                       step="0.1"
                       value={result.points}
-                      onChange={(e) => handleResultChange(index, 'points', e.target.value)}
+                      onChange={(event) => updateResult(index, 'points', event.target.value)}
                       placeholder="自動計算"
-                      className="w-full bg-[#111] border border-white/10 p-2 text-yellow-500 focus:outline-none focus:border-yellow-500 font-mono font-bold"
+                      className="w-full border border-white/10 bg-[#111] p-2 text-yellow-400 outline-none focus:border-yellow-500 font-mono font-bold"
                     />
                   </div>
                 </div>
@@ -293,22 +309,19 @@ export default function ScoreInputPage() {
             })}
           </div>
 
-          {/* 🌟 自動計算ボタンを追加 */}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-5 flex justify-end">
             <button
               type="button"
               onClick={calculatePoints}
-              className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-bold py-3 px-6 rounded-sm transition-colors border border-white/10"
+              className="w-full rounded-sm border border-white/10 bg-zinc-800 px-6 py-3 text-sm font-bold text-white transition hover:bg-zinc-700 sm:w-auto"
             >
-              ポイントを自動計算する
+              ポイントを自動計算
             </button>
           </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-4 sm:justify-between sm:items-center bg-black p-4 border border-white/10 rounded-sm">
-            <div className="text-sm font-bold text-gray-400 tracking-widest uppercase">
-              Total Points Check
-            </div>
-            <div className={`text-2xl font-mono font-bold ${Math.abs(totalPoints) < 0.1 ? 'text-green-500' : 'text-red-500'}`}>
+          <div className="mt-6 flex flex-col items-start justify-between gap-3 rounded-sm border border-white/10 bg-black p-4 sm:flex-row sm:items-center">
+            <div className="text-sm font-bold tracking-[0.18em] text-gray-400 uppercase">Total Points Check</div>
+            <div className={`font-mono text-2xl font-bold ${Math.abs(totalPoints) < 0.1 ? 'text-green-500' : 'text-red-500'}`}>
               {totalPoints.toFixed(1)} pt
             </div>
           </div>
@@ -316,9 +329,9 @@ export default function ScoreInputPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:bg-gray-700 text-black font-black italic py-4 transition-all tracking-widest mt-6"
+            className="mt-6 w-full bg-yellow-500 px-4 py-4 text-base font-black italic tracking-[0.2em] text-black transition hover:bg-yellow-400 disabled:bg-gray-700 disabled:text-gray-300"
           >
-            {isLoading ? "SAVING..." : "試合結果を確定する"}
+            {isLoading ? 'SAVING...' : '試合結果を確定する'}
           </button>
         </form>
       </div>
