@@ -15,17 +15,9 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
-    "cap:sync": "cap sync",
-    "cap:open:android": "cap open android",
-    "cap:open:ios": "cap open ios",
-    "cap:run:android": "cap run android",
-    "cap:run:ios": "cap run ios"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/core": "^6.1.2",
-    "@capacitor/ios": "^6.1.2",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^12.36.0",
@@ -40,7 +32,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@capacitor/cli": "^6.1.2",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
