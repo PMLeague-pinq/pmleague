@@ -19,10 +19,25 @@ export default function ScoreInputPage() {
     { teamId: '', playerId: '', rawScore: '', points: '' },
   ]);
 
+  const normalizeName = (value: string) =>
+    value.replace(/\u3000/g, ' ').replace(/\s+/g, ' ').trim();
+
   useEffect(() => {
     fetch('/api/teams', { cache: 'no-store' })
       .then((res) => res.json())
-      .then((data) => setTeams(data))
+      .then((data) => {
+        const normalized = Array.isArray(data)
+          ? data.map((team) => ({
+              ...team,
+              name: normalizeName(team.name || ''),
+              players: (team.players || []).map((player: Player) => ({
+                ...player,
+                name: normalizeName(player.name || ''),
+              })),
+            }))
+          : [];
+        setTeams(normalized);
+      })
       .catch((err) => console.error("チーム取得エラー", err));
   }, []);
 

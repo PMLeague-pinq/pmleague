@@ -6,23 +6,30 @@ export const dynamic = 'force-dynamic';
 
 const prisma = new PrismaClient();
 
+const normalizeDisplayName = (value: string) =>
+  value
+    .replace(/\u3000/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 export async function POST(req: Request) {
   try {
     const { name, color, playerNames } = await req.json();
+    const normalizedName = normalizeDisplayName(String(name ?? ""));
 
-    if (!name) {
+    if (!normalizedName) {
       return NextResponse.json({ error: "チーム名は必須です" }, { status: 400 });
     }
 
     // 既に同じチーム名がないかチェック
-    const existingTeam = await prisma.team.findUnique({ where: { name } });
+    const existingTeam = await prisma.team.findUnique({ where: { name: normalizedName } });
     if (existingTeam) {
       return NextResponse.json({ error: "このチーム名は既に登録されています" }, { status: 400 });
     }
 
     const normalizedPlayerNames = Array.isArray(playerNames)
       ? playerNames
-          .map((pName: string) => pName.trim())
+          .map((pName: string) => normalizeDisplayName(String(pName ?? "")))
           .filter((pName: string) => pName !== "")
       : [];
 
@@ -33,7 +40,7 @@ export async function POST(req: Request) {
     // チームと選手をまとめてデータベースに保存
     const team = await prisma.team.create({
       data: {
-        name,
+        name: normalizedName,
         color,
         players: {
           create: normalizedPlayerNames.map((pName: string) => ({ name: pName })),
@@ -84,7 +91,17 @@ export async function GET() {
         name: 'asc',
       },
     });
-    return NextResponse.json(teams);
+
+    const normalizedTeams = teams.map((team) => ({
+      ...team,
+      name: normalizeDisplayName(team.name),
+      players: team.players.map((player) => ({
+        ...player,
+        name: normalizeDisplayName(player.name),
+      })),
+    }));
+
+    return NextResponse.json(normalizedTeams);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "チーム情報の取得に失敗しました" }, { status: 500 });
@@ -94,8 +111,9 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const { id, name, color, players } = await req.json();
+    const normalizedName = normalizeDisplayName(String(name ?? ""));
 
-    if (!id || !name) {
+    if (!id || !normalizedName) {
       return NextResponse.json({ error: "チーム名とIDは必須です" }, { status: 400 });
     }
 
@@ -113,7 +131,7 @@ export async function PATCH(req: Request) {
 
     const normalizedPlayers = players.map((p: { id?: string; name?: string }) => ({
       id: (p.id || '').trim(),
-      name: (p.name || '').trim(),
+      name: normalizeDisplayName(String(p.name || '')),
     }));
 
     const playersToRemove = normalizedPlayers.filter((p) => p.id && p.name === '');
@@ -139,7 +157,7 @@ export async function PATCH(req: Request) {
     await prisma.$transaction(async (tx) => {
       await tx.team.update({
         where: { id },
-        data: { name, color },
+        data: { name: normalizedName, color },
       });
 
       for (const player of playersToRemove) {
