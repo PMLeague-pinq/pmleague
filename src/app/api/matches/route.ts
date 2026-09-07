@@ -39,6 +39,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "リクエストの形式が不正です" }, { status: 400 });
     }
 
+    console.log("MATCH_POST_PAYLOAD", JSON.stringify({
+      title: payload?.title,
+      resultCount: Array.isArray(payload?.results) ? payload.results.length : null,
+      sample: Array.isArray(payload?.results) ? payload.results.slice(0, 2) : null,
+    }));
+
     const { title, results } = payload;
 
     if (!Array.isArray(results) || results.length === 0) {
@@ -114,7 +120,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: "試合結果を登録しました！", match }, { status: 201 });
   } catch (error) {
-    console.error("match registration failed:", error);
+    console.error("match registration failed:",
+      error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : error,
+    );
 
     if (error instanceof Error && (error.message.includes("チームまたは選手が選択されていません") || error.message.includes("成績データが不正です") || error.message.includes("素点またはポイントが数値ではありません") || error.message.includes("4人分の成績を入力してください") || error.message.includes("選手が見つかりません") || error.message.includes("選手とチームの組み合わせが不正です"))) {
       return NextResponse.json({ error: error.message }, { status: 400 });
