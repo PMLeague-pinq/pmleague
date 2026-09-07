@@ -72,53 +72,49 @@ export async function POST(req: Request) {
       return a.originalIndex - b.originalIndex;
     });
 
-    const match = await prisma.$transaction(async (tx) => {
-      const newMatch = await tx.match.create({
+    const newMatch = await prisma.match.create({
+      data: {
+        title: typeof title === "string" && title.trim() ? title.trim() : "リーグ戦",
+        status: "FINISHED",
+      },
+    });
+
+    for (const [index, res] of rankedResults.entries()) {
+      const player = await prisma.player.findUnique({
+        where: { id: res.playerId },
+        select: { id: true, teamId: true },
+      });
+
+      if (!player) {
+        throw new Error(`選手が見つかりません: ${res.playerId}`);
+      }
+
+      if (player.teamId !== res.teamId) {
+        throw new Error("選手とチームの組み合わせが不正です");
+      }
+
+      await prisma.matchResult.create({
         data: {
-          title: typeof title === "string" && title.trim() ? title.trim() : "リーグ戦",
-          status: "FINISHED",
+          matchId: newMatch.id,
+          playerId: res.playerId,
+          rawScore: res.rawScore,
+          points: res.points,
+          rank: index + 1,
         },
       });
 
-      for (const [index, res] of rankedResults.entries()) {
-        const player = await tx.player.findUnique({
-          where: { id: res.playerId },
-          select: { id: true, teamId: true },
-        });
+      await prisma.player.update({
+        where: { id: res.playerId },
+        data: { totalScore: { increment: res.points } },
+      });
 
-        if (!player) {
-          throw new Error(`選手が見つかりません: ${res.playerId}`);
-        }
+      await prisma.team.update({
+        where: { id: res.teamId },
+        data: { totalScore: { increment: res.points } },
+      });
+    }
 
-        if (player.teamId !== res.teamId) {
-          throw new Error("選手とチームの組み合わせが不正です");
-        }
-
-        await tx.matchResult.create({
-          data: {
-            matchId: newMatch.id,
-            playerId: res.playerId,
-            rawScore: res.rawScore,
-            points: res.points,
-            rank: index + 1,
-          },
-        });
-
-        await tx.player.update({
-          where: { id: res.playerId },
-          data: { totalScore: { increment: res.points } },
-        });
-
-        await tx.team.update({
-          where: { id: res.teamId },
-          data: { totalScore: { increment: res.points } },
-        });
-      }
-
-      return newMatch;
-    });
-
-    return NextResponse.json({ message: "試合結果を登録しました！", match }, { status: 201 });
+    return NextResponse.json({ message: "試合結果を登録しました！", match: newMatch }, { status: 201 });
   } catch (error) {
     console.error("match registration failed:",
       error instanceof Error ? {
