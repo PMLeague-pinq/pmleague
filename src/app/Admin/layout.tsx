@@ -19,8 +19,10 @@ export default async function AdminLayout({
 
   const commonLinks = [
     { href: "/Admin", label: "ホーム" },
-    { href: "/Admin/Schedule", label: "試合日程" },
     { href: "/Admin/Scores", label: "結果入力" },
+    { href: "/Admin/MatchHistory", label: "試合履歴" },
+    { href: "/Admin/PostSeason", label: "ポストシーズン" },
+    { href: "/Admin/Schedule", label: "試合日程" },
     { href: "/Admin/Teams", label: "チーム管理" },
     { href: "/Admin/Archive", label: "アーカイブ" },
   ];

@@ -17,6 +17,16 @@ const adminNavItems: AdminNavItem[] = [
     description: "試合結果の入力とポイント計算",
   },
   {
+    href: "/Admin/MatchHistory",
+    label: "Match History",
+    description: "過去の試合結果の編集・削除",
+  },
+  {
+    href: "/Admin/PostSeason",
+    label: "Post Season",
+    description: "ポストシーズンの開始と運用",
+  },
+  {
     href: "/Admin/Schedule",
     label: "Schedule Register",
     description: "次以降の試合日程を登録",
@@ -50,8 +60,6 @@ export default async function AdminRootPage() {
           <h1 className={styles.title}>ADMIN HOME</h1>
           <p className={styles.subtitle}>運営メニューを選択してください</p>
         </div>
-
-        <PostSeasonAction isSystemAdmin={isSystemAdmin} />
 
         <div className={styles.grid}>
           {adminNavItems

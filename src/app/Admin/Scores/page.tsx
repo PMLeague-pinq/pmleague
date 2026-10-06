@@ -457,63 +457,6 @@ export default function ScoreInputPage() {
           </button>
         </form>
 
-        <section className="mt-10 rounded-sm border border-white/10 bg-[#111] p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div>
-              <h2 className="text-xl font-black italic tracking-wider text-yellow-500">MATCH HISTORY</h2>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">過去の試合結果</p>
-            </div>
-            <span className="text-xs text-gray-400">{finishedMatches.length}件</span>
-          </div>
-
-          {finishedMatches.length === 0 ? (
-            <div className="rounded-sm border border-dashed border-white/10 bg-black/30 p-6 text-center text-sm text-gray-400">
-              過去の試合結果はまだありません。
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {finishedMatches.map((match) => (
-                <div key={match.id} className="rounded-sm border border-white/10 bg-black/40 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-gray-500">{new Date(match.date).toLocaleDateString('ja-JP')}</div>
-                      <div className="mt-1 text-lg font-bold text-white">{match.title || '試合結果'}</div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEditMatch(match)}
-                        className="border border-white/10 bg-zinc-800 px-3 py-2 text-xs font-bold tracking-[0.18em] uppercase text-white hover:border-yellow-500 hover:text-yellow-400"
-                      >
-                        編集
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMatch(match.id)}
-                        className="border border-red-500/50 bg-red-900/20 px-3 py-2 text-xs font-bold tracking-[0.18em] uppercase text-red-200 hover:bg-red-900/40"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-2 text-sm text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
-                    {match.results.map((result) => (
-                      <div key={result.id} className="rounded-sm border border-white/5 bg-[#0d0d0d] p-3">
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-yellow-500">{result.rank ?? '-'}位</div>
-                        <div className="mt-1 font-bold text-white">{result.playerName}</div>
-                        <div className="text-xs text-gray-400">{result.teamName}</div>
-                        <div className="mt-2 font-mono text-sm text-yellow-300">{result.points.toFixed(1)} pt</div>
-                        <div className="text-xs text-gray-400">素点 {result.rawScore.toLocaleString()}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
       </div>
     </main>
   );
