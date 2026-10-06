@@ -50,9 +50,23 @@ export async function POST(req: Request) {
         },
       }),
       // ② 全チームのスコアを 0 にリセット
-      prisma.team.updateMany({ data: { totalScore: 0 } }),
+      prisma.team.updateMany({
+        data: {
+          totalScore: 0,
+          regularTotalScore: 0,
+          postSeasonTotalScore: 0,
+          isPostSeason: false,
+        },
+      }),
       // ③ 全選手のスコアを 0 にリセット
-      prisma.player.updateMany({ data: { totalScore: 0 } }),
+      prisma.player.updateMany({
+        data: {
+          totalScore: 0,
+          regularTotalScore: 0,
+          postSeasonTotalScore: 0,
+          isPostSeason: false,
+        },
+      }),
       // ④ 過去の試合結果データ（詳細）をすべて削除
       prisma.matchResult.deleteMany({}),
       // ⑤ 過去の試合枠データをすべて削除

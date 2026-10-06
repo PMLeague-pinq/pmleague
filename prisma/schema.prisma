@@ -26,23 +26,29 @@ enum Role {
 
 // チーム
 model Team {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  color       String?
-  totalScore  Float    @default(0.0)
-  players     Player[]
-  users       User[]
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  color               String?
+  totalScore          Float    @default(0.0)
+  regularTotalScore   Float    @default(0.0)
+  postSeasonTotalScore Float   @default(0.0)
+  isPostSeason        Boolean  @default(false)
+  players             Player[]
+  users               User[]
 }
 
 // 選手
 model Player {
-  id           String        @id @default(cuid())
-  name         String
-  teamId       String
-  team         Team          @relation(fields: [teamId], references: [id])
-  totalScore   Float         @default(0.0)
-  slotOrder    Int           @default(0)
-  matchResults MatchResult[]
+  id                   String        @id @default(cuid())
+  name                 String
+  teamId               String
+  team                 Team          @relation(fields: [teamId], references: [id])
+  totalScore           Float         @default(0.0)
+  regularTotalScore    Float         @default(0.0)
+  postSeasonTotalScore Float         @default(0.0)
+  isPostSeason         Boolean       @default(false)
+  slotOrder            Int           @default(0)
+  matchResults         MatchResult[]
 }
 
 // 試合

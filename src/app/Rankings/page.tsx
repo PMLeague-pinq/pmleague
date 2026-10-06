@@ -10,6 +10,8 @@ type PlayerRankingSource = Prisma.PlayerGetPayload<{
     name: true;
     teamId: true;
     totalScore: true;
+    regularTotalScore: true;
+    postSeasonTotalScore: true;
     team: {
       select: {
         id: true;
@@ -31,6 +33,14 @@ type PlayerRankingSource = Prisma.PlayerGetPayload<{
 
 export default async function RankingsPage() {
   const teams = await prisma.team.findMany({
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      totalScore: true,
+      regularTotalScore: true,
+      postSeasonTotalScore: true,
+    },
     orderBy: { totalScore: 'desc' },
   });
 
@@ -40,6 +50,8 @@ export default async function RankingsPage() {
       name: true,
       teamId: true,
       totalScore: true,
+      regularTotalScore: true,
+      postSeasonTotalScore: true,
       team: {
         select: {
           id: true,
@@ -188,6 +200,7 @@ export default async function RankingsPage() {
   });
 
   const topTeamScore = teams[0]?.totalScore ?? 0;
+  const formatSigned = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(1)}`;
 
   return (
     <main className="min-h-screen bg-[#050505] p-4 md:p-6 text-white font-sans">
@@ -226,8 +239,13 @@ export default async function RankingsPage() {
                   </div>
                   
                   <div className="m-ranking-right gap-3 md:gap-6">
-                    <div className={`text-lg md:text-2xl font-mono font-bold w-16 md:w-24 text-right shrink-0 ${team.totalScore >= 0 ? 'text-white' : 'text-red-500'}`}>
-                      {team.totalScore > 0 ? '+' : ''}{team.totalScore.toFixed(1)}
+                    <div className="text-right shrink-0">
+                      <div className={`text-lg md:text-2xl font-mono font-bold ${team.totalScore >= 0 ? 'text-white' : 'text-red-500'}`}>
+                        {formatSigned(team.totalScore)}
+                      </div>
+                      <div className="text-[9px] text-gray-400 tracking-widest uppercase">
+                        R {formatSigned(team.regularTotalScore)} / PS {formatSigned(team.postSeasonTotalScore)}
+                      </div>
                     </div>
                     <div className="w-16 md:w-24 text-right shrink-0">
                       {index === 0 ? (
@@ -268,8 +286,13 @@ export default async function RankingsPage() {
                           <div className="text-[10px] text-gray-500 tracking-widest uppercase truncate">{player.team?.name}</div>
                         </div>
                       </div>
-                      <div className={`text-lg font-mono font-bold w-20 text-right shrink-0 ${player.totalScore >= 0 ? 'text-white' : 'text-red-500'}`}>
-                        {player.totalScore > 0 ? '+' : ''}{player.totalScore.toFixed(1)}
+                      <div className="text-right shrink-0">
+                        <div className={`text-lg font-mono font-bold ${player.totalScore >= 0 ? 'text-white' : 'text-red-500'}`}>
+                          {formatSigned(player.totalScore)}
+                        </div>
+                        <div className="text-[9px] text-gray-400 tracking-widest uppercase">
+                          R {formatSigned(player.regularTotalScore)} / PS {formatSigned(player.postSeasonTotalScore)}
+                        </div>
                       </div>
                       <div className="w-16 text-right shrink-0 text-[10px] text-gray-500 tracking-widest uppercase">
                         {player.totalMatches}試合

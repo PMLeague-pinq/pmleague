@@ -6,6 +6,21 @@ import Link from 'next/link';
 type Player = { id: string; name: string; teamId?: string };
 type Team = { id: string; name: string; players: Player[] };
 type ResultRow = { teamId: string; playerId: string; rawScore: string; points: string };
+type FinishedMatch = {
+  id: string;
+  title: string | null;
+  date: string;
+  results: Array<{
+    id: string;
+    playerId: string;
+    teamId: string;
+    playerName: string;
+    teamName: string;
+    rawScore: number;
+    points: number;
+    rank: number | null;
+  }>;
+};
 
 const createEmptyRow = (): ResultRow => ({
   teamId: '',
@@ -19,13 +34,30 @@ const normalizeName = (value: string) =>
 
 export default function ScoreInputPage() {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [finishedMatches, setFinishedMatches] = useState<FinishedMatch[]>([]);
   const [matchTitle, setMatchTitle] = useState('');
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStartingPostSeason, setIsStartingPostSeason] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string }>({
     type: 'info',
     text: '4人分の成績を入力してください。',
   });
   const [results, setResults] = useState<ResultRow[]>(Array.from({ length: 4 }, createEmptyRow));
+
+  const loadFinishedMatches = async () => {
+    try {
+      const res = await fetch('/api/matches?status=FINISHED', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('成績一覧の取得に失敗しました');
+      }
+
+      const data = await res.json();
+      setFinishedMatches(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('試合一覧取得エラー', error);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -53,12 +85,20 @@ export default function ScoreInputPage() {
         setMessage({ type: 'error', text: 'チーム一覧の取得に失敗しました。ページを再読み込みしてください。' });
       });
 
+    loadFinishedMatches().catch(() => undefined);
+
     return () => {
       mounted = false;
     };
   }, []);
 
   const teamMap = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
+
+  const resetForm = () => {
+    setMatchTitle('');
+    setEditingMatchId(null);
+    setResults(Array.from({ length: 4 }, createEmptyRow));
+  };
 
   const updateResult = (index: number, field: keyof ResultRow, value: string) => {
     setResults((current) =>
@@ -162,7 +202,7 @@ export default function ScoreInputPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
-    setMessage({ type: 'info', text: '登録中です...' });
+    setMessage({ type: 'info', text: editingMatchId ? '試合結果を更新中です...' : '登録中です...' });
 
     const validationError = validateFormResults();
     if (validationError) {
@@ -172,6 +212,7 @@ export default function ScoreInputPage() {
     }
 
     const payload = {
+      ...(editingMatchId ? { matchId: editingMatchId } : {}),
       title: matchTitle.trim() || '試合結果',
       results: results.map((row) => ({
         teamId: row.teamId,
@@ -183,24 +224,104 @@ export default function ScoreInputPage() {
 
     try {
       const res = await fetch('/api/matches', {
-        method: 'POST',
+        method: editingMatchId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errorBody = await res.json().catch(() => ({}));
-        throw new Error(errorBody.error || '登録に失敗しました');
+        throw new Error(errorBody.error || (editingMatchId ? '更新に失敗しました' : '登録に失敗しました'));
       }
 
-      setMessage({ type: 'success', text: '試合結果を登録しました。' });
-      setMatchTitle('');
-      setResults(Array.from({ length: 4 }, createEmptyRow));
+      setMessage({
+        type: 'success',
+        text: editingMatchId ? '試合結果を更新しました。' : '試合結果を登録しました。',
+      });
+      resetForm();
+      await loadFinishedMatches();
     } catch (error) {
-      const messageText = error instanceof Error ? error.message : '登録中にエラーが発生しました';
+      const messageText = error instanceof Error ? error.message : '処理中にエラーが発生しました';
       setMessage({ type: 'error', text: messageText });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEditMatch = (match: FinishedMatch) => {
+    setEditingMatchId(match.id);
+    setMatchTitle(match.title || '');
+    setResults(
+      match.results.map((result) => ({
+        teamId: result.teamId,
+        playerId: result.playerId,
+        rawScore: String(result.rawScore ?? ''),
+        points: String(result.points ?? ''),
+      }))
+    );
+    setMessage({ type: 'info', text: '試合結果を編集しています。内容を更新して保存してください。' });
+  };
+
+  const handleDeleteMatch = async (matchId: string) => {
+    if (!window.confirm('この試合結果を削除しますか？個人成績とチーム成績も自動で調整されます。')) {
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage({ type: 'info', text: '試合結果を削除中です...' });
+
+    try {
+      const res = await fetch('/api/matches', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || '削除に失敗しました');
+      }
+
+      if (editingMatchId === matchId) {
+        resetForm();
+      }
+      setMessage({ type: 'success', text: body.message || '試合結果を削除しました。' });
+      await loadFinishedMatches();
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : '削除中にエラーが発生しました';
+      setMessage({ type: 'error', text: messageText });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartPostSeason = async () => {
+    if (!window.confirm('ポストシーズン開始は既存データを保持したまま、明示的に実行します。今シーズン中のデータを壊したくない場合は中止してください。')) {
+      return;
+    }
+
+    setIsStartingPostSeason(true);
+    setMessage({ type: 'info', text: 'ポストシーズンを開始しています...' });
+
+    try {
+      const res = await fetch('/api/post-season', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || 'ポストシーズンの開始に失敗しました');
+      }
+
+      setMessage({ type: 'success', text: body.message || 'ポストシーズンを開始しました。' });
+      await loadFinishedMatches();
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'ポストシーズンの開始中にエラーが発生しました';
+      setMessage({ type: 'error', text: messageText });
+    } finally {
+      setIsStartingPostSeason(false);
     }
   };
 
@@ -212,7 +333,17 @@ export default function ScoreInputPage() {
             <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-yellow-500">SCORE REGISTRATION</h1>
             <p className="text-gray-500 text-[10px] md:text-xs mt-1 tracking-[0.12em] md:tracking-[0.2em] uppercase font-bold">試合結果入力</p>
           </div>
-          <Link href="/" className="text-xs md:text-sm text-gray-400 hover:text-yellow-500 transition-colors">トップへ戻る</Link>
+          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleStartPostSeason}
+              disabled={isStartingPostSeason || isLoading}
+              className="rounded-sm border border-red-500/40 bg-red-900/20 px-3 py-2 text-[10px] font-bold tracking-[0.18em] uppercase text-red-200 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isStartingPostSeason ? '処理中...' : 'ポストシーズン開始'}
+            </button>
+            <Link href="/" className="text-xs md:text-sm text-gray-400 hover:text-yellow-500 transition-colors">トップへ戻る</Link>
+          </div>
         </div>
 
         {message.text && (
@@ -232,15 +363,27 @@ export default function ScoreInputPage() {
         <form onSubmit={handleSubmit} className="bg-[#111] border border-white/10 p-5 sm:p-8 rounded-sm shadow-2xl relative">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-700" />
 
-          <div className="mb-6 sm:mb-8">
-            <label className="mb-2 block text-[10px] font-bold tracking-[0.18em] text-gray-400 uppercase">試合名（任意）</label>
-            <input
-              type="text"
-              value={matchTitle}
-              onChange={(event) => setMatchTitle(event.target.value)}
-              placeholder="例: 第1節 第1試合"
-              className="w-full max-w-md bg-black border border-white/10 p-3 text-white outline-none focus:border-yellow-500"
-            />
+          <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="w-full max-w-md">
+              <label className="mb-2 block text-[10px] font-bold tracking-[0.18em] text-gray-400 uppercase">試合名（任意）</label>
+              <input
+                type="text"
+                value={matchTitle}
+                onChange={(event) => setMatchTitle(event.target.value)}
+                placeholder="例: 第1節 第1試合"
+                className="w-full bg-black border border-white/10 p-3 text-white outline-none focus:border-yellow-500"
+              />
+            </div>
+
+            {editingMatchId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-sm border border-white/10 bg-zinc-900 px-4 py-2 text-xs font-bold tracking-[0.2em] text-gray-300 hover:border-yellow-500 hover:text-yellow-400"
+              >
+                編集をやめる
+              </button>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -331,9 +474,67 @@ export default function ScoreInputPage() {
             disabled={isLoading}
             className="mt-6 w-full bg-yellow-500 px-4 py-4 text-base font-black italic tracking-[0.2em] text-black transition hover:bg-yellow-400 disabled:bg-gray-700 disabled:text-gray-300"
           >
-            {isLoading ? 'SAVING...' : '試合結果を確定する'}
+            {isLoading ? 'SAVING...' : editingMatchId ? '試合結果を更新する' : '試合結果を確定する'}
           </button>
         </form>
+
+        <section className="mt-10 rounded-sm border border-white/10 bg-[#111] p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div>
+              <h2 className="text-xl font-black italic tracking-wider text-yellow-500">MATCH HISTORY</h2>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">過去の試合結果</p>
+            </div>
+            <span className="text-xs text-gray-400">{finishedMatches.length}件</span>
+          </div>
+
+          {finishedMatches.length === 0 ? (
+            <div className="rounded-sm border border-dashed border-white/10 bg-black/30 p-6 text-center text-sm text-gray-400">
+              過去の試合結果はまだありません。
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {finishedMatches.map((match) => (
+                <div key={match.id} className="rounded-sm border border-white/10 bg-black/40 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-gray-500">{new Date(match.date).toLocaleDateString('ja-JP')}</div>
+                      <div className="mt-1 text-lg font-bold text-white">{match.title || '試合結果'}</div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleEditMatch(match)}
+                        className="border border-white/10 bg-zinc-800 px-3 py-2 text-xs font-bold tracking-[0.18em] uppercase text-white hover:border-yellow-500 hover:text-yellow-400"
+                      >
+                        編集
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMatch(match.id)}
+                        className="border border-red-500/50 bg-red-900/20 px-3 py-2 text-xs font-bold tracking-[0.18em] uppercase text-red-200 hover:bg-red-900/40"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-sm text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
+                    {match.results.map((result) => (
+                      <div key={result.id} className="rounded-sm border border-white/5 bg-[#0d0d0d] p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-yellow-500">{result.rank ?? '-'}位</div>
+                        <div className="mt-1 font-bold text-white">{result.playerName}</div>
+                        <div className="text-xs text-gray-400">{result.teamName}</div>
+                        <div className="mt-2 font-mono text-sm text-yellow-300">{result.points.toFixed(1)} pt</div>
+                        <div className="text-xs text-gray-400">素点 {result.rawScore.toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
