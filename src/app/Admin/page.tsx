@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
+import { MatchHistoryAction } from "./MatchHistoryAction";
+import { PostSeasonAction } from "./PostSeasonAction";
 import styles from "./Admin.module.css";
 
 type AdminNavItem = {
@@ -49,6 +51,9 @@ export default async function AdminRootPage() {
           <h1 className={styles.title}>ADMIN HOME</h1>
           <p className={styles.subtitle}>運営メニューを選択してください</p>
         </div>
+
+        <PostSeasonAction isSystemAdmin={isSystemAdmin} />
+        <MatchHistoryAction />
 
         <div className={styles.grid}>
           {adminNavItems

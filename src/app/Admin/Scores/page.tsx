@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type Player = { id: string; name: string; teamId?: string };
 type Team = { id: string; name: string; players: Player[] };
@@ -33,12 +34,13 @@ const normalizeName = (value: string) =>
   String(value ?? '').replace(/\u3000/g, ' ').replace(/\s+/g, ' ').trim();
 
 export default function ScoreInputPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [teams, setTeams] = useState<Team[]>([]);
   const [finishedMatches, setFinishedMatches] = useState<FinishedMatch[]>([]);
   const [matchTitle, setMatchTitle] = useState('');
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isStartingPostSeason, setIsStartingPostSeason] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string }>({
     type: 'info',
     text: '4人分の成績を入力してください。',
@@ -91,6 +93,21 @@ export default function ScoreInputPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const matchId = searchParams.get('edit');
+    if (!matchId || finishedMatches.length === 0) {
+      return;
+    }
+
+    const matchToEdit = finishedMatches.find((match) => match.id === matchId);
+    if (!matchToEdit) {
+      return;
+    }
+
+    handleEditMatch(matchToEdit);
+    router.replace('/Admin/Scores');
+  }, [finishedMatches, router, searchParams]);
 
   const teamMap = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
 
@@ -295,36 +312,6 @@ export default function ScoreInputPage() {
     }
   };
 
-  const handleStartPostSeason = async () => {
-    if (!window.confirm('ポストシーズン開始は既存データを保持したまま、明示的に実行します。今シーズン中のデータを壊したくない場合は中止してください。')) {
-      return;
-    }
-
-    setIsStartingPostSeason(true);
-    setMessage({ type: 'info', text: 'ポストシーズンを開始しています...' });
-
-    try {
-      const res = await fetch('/api/post-season', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force: true }),
-      });
-
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body.error || 'ポストシーズンの開始に失敗しました');
-      }
-
-      setMessage({ type: 'success', text: body.message || 'ポストシーズンを開始しました。' });
-      await loadFinishedMatches();
-    } catch (error) {
-      const messageText = error instanceof Error ? error.message : 'ポストシーズンの開始中にエラーが発生しました';
-      setMessage({ type: 'error', text: messageText });
-    } finally {
-      setIsStartingPostSeason(false);
-    }
-  };
-
   return (
     <main className="min-h-screen bg-[#050505] p-4 md:p-6 text-white font-sans flex flex-col items-center">
       <div className="w-full max-w-5xl mt-8">
@@ -334,14 +321,6 @@ export default function ScoreInputPage() {
             <p className="text-gray-500 text-[10px] md:text-xs mt-1 tracking-[0.12em] md:tracking-[0.2em] uppercase font-bold">試合結果入力</p>
           </div>
           <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={handleStartPostSeason}
-              disabled={isStartingPostSeason || isLoading}
-              className="rounded-sm border border-red-500/40 bg-red-900/20 px-3 py-2 text-[10px] font-bold tracking-[0.18em] uppercase text-red-200 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isStartingPostSeason ? '処理中...' : 'ポストシーズン開始'}
-            </button>
             <Link href="/" className="text-xs md:text-sm text-gray-400 hover:text-yellow-500 transition-colors">トップへ戻る</Link>
           </div>
         </div>
