@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { auth } from "@/auth";
-import { MatchHistoryAction } from "./MatchHistoryAction";
 import { PostSeasonAction } from "./PostSeasonAction";
 import styles from "./Admin.module.css";
 
@@ -53,7 +52,6 @@ export default async function AdminRootPage() {
         </div>
 
         <PostSeasonAction isSystemAdmin={isSystemAdmin} />
-        <MatchHistoryAction />
 
         <div className={styles.grid}>
           {adminNavItems
